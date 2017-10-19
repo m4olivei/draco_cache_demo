@@ -3,6 +3,10 @@
 namespace Drupal\draco_cache_demo\Plugin\Block;
 
 use Drupal\Core\Block\BlockBase;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Session\AccountProxyInterface;
+use Drupal\user\UserStorageInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a block for an example.
@@ -12,22 +16,71 @@ use Drupal\Core\Block\BlockBase;
  *   admin_label = @Translation("Cache demo block")
  * )
  */
-class CacheDemoBlock extends BlockBase {
+class CacheDemoBlock extends BlockBase implements ContainerFactoryPluginInterface {
+
+  /**
+   * Current user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $currentUser;
+
+  /**
+   * User storage.
+   *
+   * @var \Drupal\Core\Entity\EntityStorageInterface
+   */
+  protected $userStorage;
+
+  /**
+   * CacheDemoBlock constructor.
+   *
+   * @param array $configuration
+   *   The plugin configuration, i.e. an array with configuration values keyed
+   *   by configuration option name. The special key 'context' may be used to
+   *   initialize the defined contexts by setting it to an array of context
+   *   values keyed by context names.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Session\AccountProxyInterface $current_user
+   *   Current user.
+   * @param \Drupal\user\UserStorageInterface $user_storage
+   *   User storage.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, AccountProxyInterface $current_user, UserStorageInterface $user_storage) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->currentUser = $current_user;
+    $this->userStorage = $user_storage;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('current_user'),
+      $container->get('entity_type.manager')->getStorage('user')
+    );
+  }
 
   /**
    * {@inheritdoc}
    */
   public function build() {
-    $output = $this->t('<em>Kramer</em>: You have any idea how much time I waste in this apartment?');
-    $output .= '<br />';
-    $output .= $this->t('<em>Jerry</em>: I could ballpark it. As of <strong>@date_time</strong> a tonne.', ['@date_time' => date('c')]);
+    $output = $this->t('<em>Kramer</em>: I never heard of this %name. And frankly it sounds made up', ['%name' => $this->currentUser->getDisplayName()]);
+
+    /** @var \Drupal\user\Entity\User $account */
+    $account = $this->userStorage->load($this->currentUser->id());
     return [
       '#markup' => $output,
       '#cache' => [
-        // We're not dependent on the current time, we don't need to be precise
-        // (ie. max-age = 0 => uncacheable), we can accept some staleness in
-        // Jerry's estimate.
-        'max-age' => 30,
+        'context' => ['user'],
+        'tags' => $account->getCacheTags(),
       ],
     ];
   }
