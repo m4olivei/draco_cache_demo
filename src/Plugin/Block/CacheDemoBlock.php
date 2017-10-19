@@ -19,7 +19,7 @@ class CacheDemoBlock extends BlockBase {
    */
   public function build() {
     return [
-      '#markup' => $this->t('Here is some block output for you!'),
+      '#markup' => $this->t('These pretzels are making me thirsty!'),
     ];
   }
 
