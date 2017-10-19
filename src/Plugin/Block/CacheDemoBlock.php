@@ -4,6 +4,7 @@ namespace Drupal\draco_cache_demo\Plugin\Block;
 
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Render\Renderer;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\user\UserStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -33,6 +34,13 @@ class CacheDemoBlock extends BlockBase implements ContainerFactoryPluginInterfac
   protected $userStorage;
 
   /**
+   * Renderer.
+   *
+   * @var \Drupal\Core\Render\Renderer
+   */
+  protected $renderer;
+
+  /**
    * CacheDemoBlock constructor.
    *
    * @param array $configuration
@@ -48,11 +56,14 @@ class CacheDemoBlock extends BlockBase implements ContainerFactoryPluginInterfac
    *   Current user.
    * @param \Drupal\user\UserStorageInterface $user_storage
    *   User storage.
+   * @param \Drupal\Core\Render\Renderer $renderer
+   *   Renderer.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, AccountProxyInterface $current_user, UserStorageInterface $user_storage) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, AccountProxyInterface $current_user, UserStorageInterface $user_storage, Renderer $renderer) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->currentUser = $current_user;
     $this->userStorage = $user_storage;
+    $this->renderer = $renderer;
   }
 
   /**
@@ -64,7 +75,8 @@ class CacheDemoBlock extends BlockBase implements ContainerFactoryPluginInterfac
       $plugin_id,
       $plugin_definition,
       $container->get('current_user'),
-      $container->get('entity_type.manager')->getStorage('user')
+      $container->get('entity_type.manager')->getStorage('user'),
+      $container->get('renderer')
     );
   }
 
@@ -76,13 +88,14 @@ class CacheDemoBlock extends BlockBase implements ContainerFactoryPluginInterfac
 
     /** @var \Drupal\user\Entity\User $account */
     $account = $this->userStorage->load($this->currentUser->id());
-    return [
+    $build = [
       '#markup' => $output,
       '#cache' => [
         'context' => ['user'],
-        'tags' => $account->getCacheTags(),
       ],
     ];
+    $this->renderer->addCacheableDependency($build, $account);
+    return $build;
   }
 
 }
