@@ -1,0 +1,5 @@
+name: Draco cache demo
+type: module
+description: Demo some cache concepts
+core: 8.x
+package: Draco
